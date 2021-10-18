@@ -5,16 +5,16 @@ mod models;
 
 use crate::handlers::*;
 use actix_web::{web, App, HttpServer};
-use deadpool_postgres::Runtime;
+
 use dotenv::dotenv;
 use tokio_postgres::NoTls;
 
-#[actix_web::main]
+#[actix_rt::main]
 async fn main() -> std::io::Result<()> {
     dotenv().ok();
 
     let config = crate::config::Config::from_env().unwrap();
-    let pool = config.pg.create_pool(Some(Runtime::Tokio1), NoTls).unwrap();
+    let pool = config.pg.create_pool(NoTls).unwrap();
 
     println!(
         "Starting server at http://{}:{}/",
@@ -25,6 +25,12 @@ async fn main() -> std::io::Result<()> {
             .data(pool.clone())
             .route("/", web::get().to(status))
             .route("/todos{_:/?}", web::get().to(get_todos))
+            .route("/todos{_:/?}", web::post().to(create_todo))
+            .route("/todos/{list_id}/items{_:/?}", web::get().to(get_items))
+            .route(
+                "/todos/{list_id}/items/{item_id}{_:/?}",
+                web::put().to(check_todo),
+            )
     })
     .bind(format!("{}:{}", config.server.host, config.server.port))?
     .run()
